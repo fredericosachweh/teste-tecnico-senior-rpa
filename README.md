@@ -188,12 +188,6 @@ direnv allow
 
 Commite o `flake.lock` no seu repositório.
 
-### Alternativa: Docker Only
-
-```bash
-docker-compose up --build
-```
-
 ---
 
 ## Regras
