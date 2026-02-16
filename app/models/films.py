@@ -1,13 +1,13 @@
+from app.database import Base
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
-from app.database import Base
 
 
 # SQLAlchemy Model
 class Film(Base):
     __tablename__ = "films"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
     year: Mapped[int] = mapped_column(Integer, nullable=False)

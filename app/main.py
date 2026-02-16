@@ -1,14 +1,15 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Depends
+
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DBSession
 
-from app.database import get_session, engine, Base
-from app.models.jobs import Job, JobStatus, JobType
-from app.models.hockey_teams import HockeyTeam, HockeyTeamHistoric
+from app.database import Base, engine, get_session
 from app.models.films import Film
+from app.models.hockey_teams import HockeyTeamHistoric
+from app.models.jobs import Job, JobStatus, JobType
 from app.queue import publish_job
 
 # Create tables
@@ -17,7 +18,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="RPA Crawler API",
     description="API para coleta assíncrona de dados via web scraping",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 
@@ -78,8 +79,8 @@ def root():
         "endpoints": {
             "crawl": ["/crawl/hockey", "/crawl/oscar", "/crawl/all"],
             "jobs": ["/jobs", "/jobs/{job_id}", "/jobs/{job_id}/results"],
-            "results": ["/results/hockey", "/results/oscar"]
-        }
+            "results": ["/results/hockey", "/results/oscar"],
+        },
     }
 
 
@@ -93,20 +94,16 @@ def health():
 def crawl_hockey(db: DBSession = Depends(get_session)):
     """Agenda coleta do Hockey (retorna job_id)"""
     job_id = str(uuid.uuid4())
-    
+
     # Create job in database
-    job = Job(
-        job_id=job_id,
-        job_type=JobType.HOCKEY,
-        status=JobStatus.PENDING
-    )
+    job = Job(job_id=job_id, job_type=JobType.HOCKEY, status=JobStatus.PENDING)
     db.add(job)
     db.commit()
     db.refresh(job)
-    
+
     # Publish to queue
     publish_job({"job_id": job_id, "job_type": "hockey"})
-    
+
     return JobResponse(
         job_id=job.job_id,
         job_type=job.job_type.value,
@@ -115,7 +112,7 @@ def crawl_hockey(db: DBSession = Depends(get_session)):
         started_at=job.started_at,
         completed_at=job.completed_at,
         error_message=job.error_message,
-        results_count=job.results_count
+        results_count=job.results_count,
     )
 
 
@@ -123,20 +120,16 @@ def crawl_hockey(db: DBSession = Depends(get_session)):
 def crawl_oscar(db: DBSession = Depends(get_session)):
     """Agenda coleta do Oscar (retorna job_id)"""
     job_id = str(uuid.uuid4())
-    
+
     # Create job in database
-    job = Job(
-        job_id=job_id,
-        job_type=JobType.OSCAR,
-        status=JobStatus.PENDING
-    )
+    job = Job(job_id=job_id, job_type=JobType.OSCAR, status=JobStatus.PENDING)
     db.add(job)
     db.commit()
     db.refresh(job)
-    
+
     # Publish to queue
     publish_job({"job_id": job_id, "job_type": "oscar"})
-    
+
     return JobResponse(
         job_id=job.job_id,
         job_type=job.job_type.value,
@@ -145,7 +138,7 @@ def crawl_oscar(db: DBSession = Depends(get_session)):
         started_at=job.started_at,
         completed_at=job.completed_at,
         error_message=job.error_message,
-        results_count=job.results_count
+        results_count=job.results_count,
     )
 
 
@@ -153,39 +146,27 @@ def crawl_oscar(db: DBSession = Depends(get_session)):
 def crawl_all(db: DBSession = Depends(get_session)):
     """Agenda ambas as coletas (retorna job_ids)"""
     jobs = []
-    
+
     # Hockey job
     hockey_job_id = str(uuid.uuid4())
     hockey_job = Job(
-        job_id=hockey_job_id,
-        job_type=JobType.HOCKEY,
-        status=JobStatus.PENDING
+        job_id=hockey_job_id, job_type=JobType.HOCKEY, status=JobStatus.PENDING
     )
     db.add(hockey_job)
     publish_job({"job_id": hockey_job_id, "job_type": "hockey"})
-    jobs.append({
-        "job_id": hockey_job_id,
-        "job_type": "hockey",
-        "status": "pending"
-    })
-    
+    jobs.append({"job_id": hockey_job_id, "job_type": "hockey", "status": "pending"})
+
     # Oscar job
     oscar_job_id = str(uuid.uuid4())
     oscar_job = Job(
-        job_id=oscar_job_id,
-        job_type=JobType.OSCAR,
-        status=JobStatus.PENDING
+        job_id=oscar_job_id, job_type=JobType.OSCAR, status=JobStatus.PENDING
     )
     db.add(oscar_job)
     publish_job({"job_id": oscar_job_id, "job_type": "oscar"})
-    jobs.append({
-        "job_id": oscar_job_id,
-        "job_type": "oscar",
-        "status": "pending"
-    })
-    
+    jobs.append({"job_id": oscar_job_id, "job_type": "oscar", "status": "pending"})
+
     db.commit()
-    
+
     return {"jobs": jobs}
 
 
@@ -203,7 +184,7 @@ def list_jobs(db: DBSession = Depends(get_session)):
             started_at=job.started_at,
             completed_at=job.completed_at,
             error_message=job.error_message,
-            results_count=job.results_count
+            results_count=job.results_count,
         )
         for job in jobs
     ]
@@ -215,7 +196,7 @@ def get_job(job_id: str, db: DBSession = Depends(get_session)):
     job = db.query(Job).filter(Job.job_id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     return JobResponse(
         job_id=job.job_id,
         job_type=job.job_type.value,
@@ -224,7 +205,7 @@ def get_job(job_id: str, db: DBSession = Depends(get_session)):
         started_at=job.started_at,
         completed_at=job.completed_at,
         error_message=job.error_message,
-        results_count=job.results_count
+        results_count=job.results_count,
     )
 
 
@@ -234,20 +215,22 @@ def get_job_results(job_id: str, db: DBSession = Depends(get_session)):
     job = db.query(Job).filter(Job.job_id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     if job.status != JobStatus.COMPLETED:
         return {
             "job_id": job_id,
             "status": job.status.value,
             "message": "Job not completed yet",
-            "results": []
+            "results": [],
         }
-    
+
     # Get results based on job type
     if job.job_type == JobType.HOCKEY:
-        results = db.query(HockeyTeamHistoric).filter(
-            HockeyTeamHistoric.job_id == job_id
-        ).all()
+        results = (
+            db.query(HockeyTeamHistoric)
+            .filter(HockeyTeamHistoric.job_id == job_id)
+            .all()
+        )
         return {
             "job_id": job_id,
             "status": job.status.value,
@@ -264,10 +247,10 @@ def get_job_results(job_id: str, db: DBSession = Depends(get_session)):
                     wins_percentage=r.wins_percentage,
                     goals_for=r.goals_for,
                     goals_against=r.goals_against,
-                    goal_difference=r.goal_difference
+                    goal_difference=r.goal_difference,
                 )
                 for r in results
-            ]
+            ],
         }
     else:  # OSCAR
         results = db.query(Film).filter(Film.job_id == job_id).all()
@@ -283,10 +266,10 @@ def get_job_results(job_id: str, db: DBSession = Depends(get_session)):
                     year=r.year,
                     nominations=r.nominations,
                     awards=r.awards,
-                    best_picture=r.best_picture
+                    best_picture=r.best_picture,
                 )
                 for r in results
-            ]
+            ],
         }
 
 
@@ -309,10 +292,10 @@ def get_all_hockey_results(limit: int = 100, db: DBSession = Depends(get_session
                 wins_percentage=r.wins_percentage,
                 goals_for=r.goals_for,
                 goals_against=r.goals_against,
-                goal_difference=r.goal_difference
+                goal_difference=r.goal_difference,
             )
             for r in results
-        ]
+        ],
     }
 
 
@@ -330,9 +313,8 @@ def get_all_oscar_results(limit: int = 100, db: DBSession = Depends(get_session)
                 year=r.year,
                 nominations=r.nominations,
                 awards=r.awards,
-                best_picture=r.best_picture
+                best_picture=r.best_picture,
             )
             for r in results
-        ]
+        ],
     }
-

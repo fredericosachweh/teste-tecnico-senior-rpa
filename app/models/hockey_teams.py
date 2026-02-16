@@ -8,9 +8,10 @@ class HockeyTeam(Base):
     __tablename__ = "hockey_team"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    historic: Mapped[list["HockeyTeamHistoric"]] = relationship("HockeyTeamHistoric",
-                                                                back_populates="team",
-                                                                lazy="joined")
+    historic: Mapped[list["HockeyTeamHistoric"]] = relationship(
+        "HockeyTeamHistoric", back_populates="team", lazy="joined"
+    )
+
 
 # Hockey Team Historic
 class HockeyTeamHistoric(Base):

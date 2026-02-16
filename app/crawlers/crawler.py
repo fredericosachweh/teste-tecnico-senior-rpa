@@ -2,27 +2,27 @@ import json
 import os
 import re
 import time
-from typing import List, Dict, Optional
-from urllib.parse import urljoin
 import urllib.request
+from typing import Dict, List, Optional
+from urllib.parse import urljoin
+
 from selenium import webdriver
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    StaleElementReferenceException,
+    TimeoutException,
+)
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support import expected_conditions as EC  # noqa: N812
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import (
-    TimeoutException,
-    NoSuchElementException,
-    StaleElementReferenceException
-)
 
 from app.config import SCRAPER_URLS
-from app.models.hockey_teams import HockeyTeam, HockeyTeamHistoric
-from app.models.films import Film
 from app.database import Session
-from app.config import DATABASE_URL
+from app.models.films import Film
+from app.models.hockey_teams import HockeyTeam, HockeyTeamHistoric
 
 
 class Scraper:
@@ -66,6 +66,7 @@ class Scraper:
         else:
             try:
                 from webdriver_manager.chrome import ChromeDriverManager
+
                 service = Service(ChromeDriverManager().install())
             except ImportError:
                 service = Service()  # fallback to PATH
@@ -73,19 +74,22 @@ class Scraper:
         self.driver = webdriver.Chrome(service=service, options=options)
 
         # Better webdriver hiding (executed on every new document)
-        self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": """
+        self.driver.execute_cdp_cmd(
+            "Page.addScriptToEvaluateOnNewDocument",
+            {"source": """
                 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-                Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-            """
-        })
+                Object.defineProperty(navigator, 'languages',
+                    { get: () => ['en-US', 'en'] });
+                Object.defineProperty(navigator, 'plugins',
+                    { get: () => [1, 2, 3, 4, 5] });
+            """},
+        )
 
     def close(self) -> None:
         if self.driver is not None:
             try:
                 self.driver.quit()
-            except:
+            except Exception:
                 pass
             self.driver = None
 
@@ -109,14 +113,14 @@ class HockeyHistoricScraper(Scraper):
                     continue
 
                 entry = {
-                    "name":            cells[0].text.strip(),
-                    "year":            cells[1].text.strip(),
-                    "wins":            cells[2].text.strip(),
-                    "losses":          cells[3].text.strip(),
-                    "losses_ot":       cells[4].text.strip(),
+                    "name": cells[0].text.strip(),
+                    "year": cells[1].text.strip(),
+                    "wins": cells[2].text.strip(),
+                    "losses": cells[3].text.strip(),
+                    "losses_ot": cells[4].text.strip(),
                     "wins_percentage": cells[5].text.strip(),
-                    "goals_for":       cells[6].text.strip(),
-                    "goals_against":   cells[7].text.strip(),
+                    "goals_for": cells[6].text.strip(),
+                    "goals_against": cells[7].text.strip(),
                     "goal_difference": cells[8].text.strip(),
                 }
                 data.append(entry)
@@ -124,7 +128,6 @@ class HockeyHistoricScraper(Scraper):
                 continue  # row disappeared → skip
 
         return data
-    
 
     def _extract_page_data(self) -> WebElement:
         try:
@@ -142,7 +145,9 @@ class HockeyHistoricScraper(Scraper):
         urls = set()
 
         try:
-            pagination = self.driver.find_element(By.CSS_SELECTOR, self.PAGINATION_SELECTOR)
+            pagination = self.driver.find_element(
+                By.CSS_SELECTOR, self.PAGINATION_SELECTOR
+            )
             links = pagination.find_elements(By.TAG_NAME, "a")
 
             for link in links:
@@ -153,15 +158,23 @@ class HockeyHistoricScraper(Scraper):
                     page_number = re.search(r"page_num=(\d+)", href).group(1)
                     full_url = urljoin(base_url, "?page_num=" + page_number)
                     urls.add(full_url)
-                except:
+                except Exception:
                     continue
 
-            return sorted(list(urls), key=lambda x: int(re.search(rf"{self.PAGE_PARAM}=(\d+)", x).group(1)))
+            def page_num_key(url: str) -> int:
+                return int(re.search(rf"{self.PAGE_PARAM}=(\d+)", url).group(1))
+
+            return sorted(list(urls), key=page_num_key)
 
         except (NoSuchElementException, StaleElementReferenceException):
             return []
 
-    def get_all_historic_data(self, base_url: str, save_per_page: bool = False, job_id: str = None) -> List[Dict[str, str]]:
+    def get_all_historic_data(
+        self,
+        base_url: str,
+        save_per_page: bool = False,
+        job_id: str = None,
+    ) -> List[Dict[str, str]]:
         """
         Main entry point — collects data from all pages
         """
@@ -245,23 +258,27 @@ class HockeyHistoricScraper(Scraper):
 
         with Session() as session:
             for row in data:
-                team = session.query(HockeyTeam).filter(HockeyTeam.name == row['name']).one_or_none()
+                team = (
+                    session.query(HockeyTeam)
+                    .filter(HockeyTeam.name == row["name"])
+                    .one_or_none()
+                )
                 if not team:
-                    team = HockeyTeam(name=row['name'])   
+                    team = HockeyTeam(name=row["name"])
                     session.add(team)
                     session.commit()
                     session.refresh(team)
 
                 historic = HockeyTeamHistoric(
                     team_id=team.id,
-                    year=to_int(row['year']),
-                    wins=to_int(row['wins']),
-                    losses=to_int(row['losses']),
-                    losses_ot=to_int(row['losses_ot']),
-                    wins_percentage=to_float(row['wins_percentage']),
-                    goals_for=to_float(row['goals_for']),
-                    goals_against=to_float(row['goals_against']),
-                    goal_difference=to_float(row['goal_difference']),
+                    year=to_int(row["year"]),
+                    wins=to_int(row["wins"]),
+                    losses=to_int(row["losses"]),
+                    losses_ot=to_int(row["losses_ot"]),
+                    wins_percentage=to_float(row["wins_percentage"]),
+                    goals_for=to_float(row["goals_for"]),
+                    goals_against=to_float(row["goals_against"]),
+                    goal_difference=to_float(row["goal_difference"]),
                     job_id=job_id,
                 )
                 session.add(historic)
@@ -271,10 +288,10 @@ class HockeyHistoricScraper(Scraper):
 class OscarScraper(Scraper):
     """
     Scrapes Oscar winning films data loaded via AJAX/JavaScript.
-    
+
     The target page loads data via AJAX endpoint:
     GET /pages/ajax-javascript/?ajax=true&year=YYYY
-    
+
     Strategy: directly call the AJAX API for each year (2010-2015)
     which returns clean JSON — more reliable than DOM interaction.
     """
@@ -283,7 +300,9 @@ class OscarScraper(Scraper):
 
     def get_years(self) -> List[int]:
         try:
-            req = urllib.request.Request(self.BASE_URL, headers={"User-Agent": "Mozilla/5.0"})
+            req = urllib.request.Request(
+                self.BASE_URL, headers={"User-Agent": "Mozilla/5.0"}
+            )
             with urllib.request.urlopen(req, timeout=15) as resp:
                 html = resp.read().decode("utf-8")
                 years = re.findall(r'class="year-link" id="(\d+)"', html)
@@ -293,8 +312,7 @@ class OscarScraper(Scraper):
             return []
 
     def _fetch_year_data(self, year: int) -> List[Dict[str, any]]:
-        YEARS = self.get_years() # 2010 through 2015
-        """Fetch film data for a specific year via the AJAX endpoint"""
+        """Fetch film data for a specific year via the AJAX endpoint."""
         url = f"{self.BASE_URL}?ajax=true&year={year}"
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -325,7 +343,7 @@ class OscarScraper(Scraper):
         """
         all_data: List[Dict[str, any]] = []
 
-        years = self.get_years() # 2010 through 2015
+        years = self.get_years()  # 2010 through 2015
 
         for year in years:
             films = self._fetch_year_data(year)
@@ -341,11 +359,11 @@ class OscarScraper(Scraper):
         with Session() as session:
             for row in data:
                 film = Film(
-                    title=row['title'],
-                    year=row['year'],
-                    nominations=row['nominations'],
-                    awards=row['awards'],
-                    best_picture=row.get('best_picture', False),
+                    title=row["title"],
+                    year=row["year"],
+                    nominations=row["nominations"],
+                    awards=row["awards"],
+                    best_picture=row.get("best_picture", False),
                     job_id=job_id,
                 )
                 session.add(film)

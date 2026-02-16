@@ -1,8 +1,7 @@
 from urllib.parse import urlparse, urlunparse
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import DATABASE_URL
 
@@ -11,11 +10,20 @@ DATABASE_NAME = "rpa"
 
 
 def ensure_database_exists() -> None:
-    """Create database named DATABASE_NAME if it does not exist (connects to 'postgres')."""
+    """Create database DATABASE_NAME if missing (connects to 'postgres')."""
     parsed = urlparse(DATABASE_URL)
     db_name = parsed.path.lstrip("/") or DATABASE_NAME
     # Connect to default 'postgres' database to run CREATE DATABASE
-    base_url = urlunparse((parsed.scheme, parsed.netloc, "/postgres", parsed.params, parsed.query, parsed.fragment))
+    base_url = urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            "/postgres",
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
     engine = create_engine(base_url, isolation_level="AUTOCOMMIT")
     with engine.connect() as conn:
         exists = conn.execute(

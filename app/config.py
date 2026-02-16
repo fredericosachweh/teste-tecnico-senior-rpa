@@ -32,5 +32,5 @@ SCRAPER_URLS = {
     },
     "oscar": {
         "url": "https://www.scrapethissite.com/pages/ajax-javascript/",
-    }
+    },
 }

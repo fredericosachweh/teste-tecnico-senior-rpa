@@ -12,7 +12,8 @@ class TestFilmBase:
     def test_empty_title_raises(self):
         with pytest.raises(ValidationError) as exc_info:
             FilmBase(title="")
-        assert "title" in str(exc_info.value).lower() or len(exc_info.value.errors()) > 0
+        err = exc_info.value
+        assert "title" in str(err).lower() or len(err.errors()) > 0
 
     def test_missing_title_raises(self):
         with pytest.raises(ValidationError):

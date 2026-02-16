@@ -14,8 +14,8 @@ def engine():
 @pytest.fixture
 def session(engine):
     Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
-    with SessionLocal() as session:
+    session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    with session_factory() as session:
         yield session
     Base.metadata.drop_all(engine)
 

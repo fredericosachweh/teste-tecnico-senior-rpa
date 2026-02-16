@@ -1,14 +1,26 @@
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
+from selenium.common.exceptions import StaleElementReferenceException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from selenium.common.exceptions import StaleElementReferenceException
 
+from app.crawlers.crawler import HockeyHistoricScraper
 from app.database import Base
 from app.models.hockey_teams import HockeyTeam, HockeyTeamHistoric
 
-from app.crawlers.crawler import HockeyHistoricScraper
+# Hockey table header row (kept in one place for line-length)
+HOCKEY_HEADER = [
+    "Team Name",
+    "Year",
+    "Wins",
+    "Losses",
+    "OT Losses",
+    "Win %",
+    "Goals For (GF)",
+    "Goals Against (GA)",
+    "+ / -",
+]
 
 
 def _make_cell(text: str) -> MagicMock:
@@ -41,18 +53,18 @@ def scraper():
 
 
 def test_empty_table_returns_empty_list(scraper):
-    page_data = _make_page_data([
-        ["Team Name", "Year", "Wins", "Losses", "OT Losses", "Win %", "Goals For (GF)", "Goals Against (GA)", "+ / -"],
-    ])
+    page_data = _make_page_data([HOCKEY_HEADER])
     result = scraper.parse_page_data(page_data)
     assert result == []
 
 
 def test_single_row_parsed_correctly(scraper):
-    page_data = _make_page_data([
-        ["Team Name", "Year", "Wins", "Losses", "OT Losses", "Win %", "Goals For (GF)", "Goals Against (GA)", "+ / -"],
-        ["Bruins", "2024", "50", "20", "12", ".650", "280", "220", "60"],
-    ])
+    page_data = _make_page_data(
+        [
+            HOCKEY_HEADER,
+            ["Bruins", "2024", "50", "20", "12", ".650", "280", "220", "60"],
+        ]
+    )
     result = scraper.parse_page_data(page_data)
 
     assert len(result) == 1
@@ -70,11 +82,13 @@ def test_single_row_parsed_correctly(scraper):
 
 
 def test_multiple_rows_parsed(scraper):
-    page_data = _make_page_data([
-        ["Team Name", "Year", "Wins", "Losses", "OT Losses", "Win %", "Goals For (GF)", "Goals Against (GA)", "+ / -"],
-        ["Bruins", "2024", "50", "20", "12", ".650", "280", "220", "60"],
-        ["Rangers", "2024", "48", "22", "12", ".610", "270", "230", "40"],
-    ])
+    page_data = _make_page_data(
+        [
+            HOCKEY_HEADER,
+            ["Bruins", "2024", "50", "20", "12", ".650", "280", "220", "60"],
+            ["Rangers", "2024", "48", "22", "12", ".610", "270", "230", "40"],
+        ]
+    )
     result = scraper.parse_page_data(page_data)
 
     assert len(result) == 2
@@ -83,10 +97,12 @@ def test_multiple_rows_parsed(scraper):
 
 
 def test_strips_whitespace(scraper):
-    page_data = _make_page_data([
-        ["Team Name", "Year", "Wins", "Losses", "OT Losses", "Win %", "Goals For (GF)", "Goals Against (GA)", "+ / -"],
-        ["  Bruins  ", " 2024 ", "50", "20", "12", ".650", "280", "220", "60"],
-    ])
+    page_data = _make_page_data(
+        [
+            HOCKEY_HEADER,
+            ["  Bruins  ", " 2024 ", "50", "20", "12", ".650", "280", "220", "60"],
+        ]
+    )
     result = scraper.parse_page_data(page_data)
 
     assert result[0]["name"] == "Bruins"
@@ -94,11 +110,13 @@ def test_strips_whitespace(scraper):
 
 
 def test_row_with_fewer_than_nine_cells_skipped(scraper):
-    page_data = _make_page_data([
-        ["Team Name", "Year", "Wins", "Losses", "OT Losses", "Win %", "Goals For (GF)", "Goals Against (GA)", "+ / -"],
-        ["Bruins", "2024", "50"],  # only 3 cells
-        ["Rangers", "2024", "48", "22", "12", ".610", "270", "230", "40"],
-    ])
+    page_data = _make_page_data(
+        [
+            HOCKEY_HEADER,
+            ["Bruins", "2024", "50"],  # only 3 cells
+            ["Rangers", "2024", "48", "22", "12", ".610", "270", "230", "40"],
+        ]
+    )
     result = scraper.parse_page_data(page_data)
 
     assert len(result) == 1
@@ -106,11 +124,13 @@ def test_row_with_fewer_than_nine_cells_skipped(scraper):
 
 
 def test_stale_element_exception_skips_row(scraper):
-    page_data = _make_page_data([
-        ["Team Name", "Year", "Wins", "Losses", "OT Losses", "Win %", "Goals For (GF)", "Goals Against (GA)", "+ / -"],
-        ["Bruins", "2024", "50", "20", "12", ".650", "280", "220", "60"],
-        ["Rangers", "2024", "48", "22", "12", ".610", "270", "230", "40"],
-    ])
+    page_data = _make_page_data(
+        [
+            HOCKEY_HEADER,
+            ["Bruins", "2024", "50", "20", "12", ".650", "280", "220", "60"],
+            ["Rangers", "2024", "48", "22", "12", ".610", "270", "230", "40"],
+        ]
+    )
 
     # Make second data row (index 2) stale
     rows = page_data.find_element.return_value.find_elements.return_value
@@ -126,27 +146,31 @@ def test_save_to_database(scraper):
     """Save parsed data to an in-memory SQLite database and verify it was persisted."""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    page_data = _make_page_data([
-        ["Team Name", "Year", "Wins", "Losses", "OT Losses", "Win %", "Goals For (GF)", "Goals Against (GA)", "+ / -"],
-        ["Bruins", "2024", "50", "20", "12", ".650", "280", "220", "60"],
-        ["Rangers", "2024", "48", "22", "12", ".610", "270", "230", "40"],
-    ])
+    page_data = _make_page_data(
+        [
+            HOCKEY_HEADER,
+            ["Bruins", "2024", "50", "20", "12", ".650", "280", "220", "60"],
+            ["Rangers", "2024", "48", "22", "12", ".610", "270", "230", "40"],
+        ]
+    )
 
     records = scraper.parse_page_data(page_data)
     assert len(records) == 2
 
-    with patch("app.crawlers.crawler.Session", SessionLocal):
+    with patch("app.crawlers.crawler.Session", session_factory):
         scraper.save_to_database(records)
 
-    with SessionLocal() as session:
+    with session_factory() as session:
         teams = session.query(HockeyTeam).order_by(HockeyTeam.name).all()
         assert len(teams) == 2
         assert teams[0].name == "Bruins"
         assert teams[1].name == "Rangers"
 
-        historics = session.query(HockeyTeamHistoric).order_by(HockeyTeamHistoric.team_id).all()
+        historics = (
+            session.query(HockeyTeamHistoric).order_by(HockeyTeamHistoric.team_id).all()
+        )
         assert len(historics) == 2
         assert historics[0].year == 2024 and historics[0].wins == 50
         assert historics[1].year == 2024 and historics[1].wins == 48
