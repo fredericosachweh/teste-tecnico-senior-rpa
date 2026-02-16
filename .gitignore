@@ -1,1 +1,46 @@
-.direnv
+# Direnv / Nix
+.direnv/
+uv.lock
+
+# Python
+*.pyc
+__pycache__/
+.venv/
+venv/
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Env and secrets
+.env
+.env.local
+.env.*.local
+
+# Tests and coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# Linting / type check
+.ruff_cache/
+.mypy_cache/
+
+# IDE / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local History (Cursor / VSCode)
+.history/
+
+# Optional
+*.log
+*.tmp

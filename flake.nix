@@ -20,6 +20,10 @@
           pip
           setuptools
           wheel
+          ruff
+          black
+          pytest
+          pytest-cov
         ]);
       in
       {
@@ -28,13 +32,13 @@
             pythonEnv
             uv
 
-            chromium
+          #   chromium
             chromedriver
           ];
 
           shellHook = ''
             export UV_LINK_MODE=copy
-            export CHROME_EXECUTABLE_PATH=${pkgs.chromium}/bin/chromium
+            
             export CHROMEDRIVER_PATH=${pkgs.chromedriver}/bin/chromedriver
           '';
 
@@ -44,26 +48,26 @@
             pkgs.glib
             pkgs.nspr
             pkgs.nss
-            pkgs.dbus
-            pkgs.atk
-            pkgs.at-spi2-atk
-            pkgs.cups
-            pkgs.expat
-            pkgs.libxcb
-            pkgs.libxkbcommon
-            pkgs.at-spi2-core
-            pkgs.xorg.libX11
-            pkgs.xorg.libXcomposite
-            pkgs.xorg.libXdamage
-            pkgs.xorg.libXext
-            pkgs.xorg.libXfixes
-            pkgs.xorg.libXrandr
-            pkgs.mesa
-            pkgs.libgbm
-            pkgs.cairo
-            pkgs.pango
-            pkgs.systemd
-            pkgs.alsa-lib
+          #   pkgs.dbus
+          #   pkgs.atk
+          #   pkgs.at-spi2-atk
+          #   pkgs.cups
+          #   pkgs.expat
+          #   pkgs.libxcb
+          #   pkgs.libxkbcommon
+          #   pkgs.at-spi2-core
+          #   pkgs.libX11
+          #   pkgs.libXcomposite
+          #   pkgs.libXdamage
+          #   pkgs.libXext
+          #   pkgs.libXfixes
+          #   pkgs.libXrandr
+          #   pkgs.mesa
+          #   pkgs.libgbm
+          #   pkgs.cairo
+          #   pkgs.pango
+          #   pkgs.systemd
+          #    pkgs.alsa-lib
           ];
 
           PYTHONPATH = "${toString ./.}";
