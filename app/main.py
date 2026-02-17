@@ -1,4 +1,5 @@
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import List, Optional
 
@@ -7,19 +8,30 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.orm import joinedload
 
-from app.database import Base, engine, get_session
+from app.database import Base, get_session
 from app.models.films import OscarWinnerFilm
 from app.models.hockey_teams import HockeyTeamHistoric
 from app.models.jobs import Job, JobStatus, JobType
 from app.queue import publish_job, publish_jobs
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Create DB tables on startup (not at import time,
+    so tests can import app without connecting).
+    """
+    from app.database import engine as db_engine
+
+    Base.metadata.create_all(bind=db_engine)
+    yield
+
 
 app = FastAPI(
     title="RPA Crawler API",
     description="API para coleta assíncrona de dados via web scraping",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 

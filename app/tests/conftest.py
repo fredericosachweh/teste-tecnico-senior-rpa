@@ -1,10 +1,26 @@
 """Pytest configuration and fixtures for app/tests."""
 
+import os
 import warnings
 
 import pytest
 
 warnings.filterwarnings("ignore", category=ResourceWarning)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def override_database_url_for_tests(postgres_url):
+    """Set DATABASE_URL globally for the entire test session."""
+    original_url = os.environ.get("DATABASE_URL")
+    print(f"Overriding DATABASE_URL to: {postgres_url}")
+    os.environ["DATABASE_URL"] = postgres_url
+    yield
+    # Reset after session
+    if original_url:
+        os.environ["DATABASE_URL"] = original_url
+    else:
+        del os.environ["DATABASE_URL"]
+    print(f"Reset DATABASE_URL to: {original_url}")
 
 
 def pytest_configure(config):
@@ -44,17 +60,46 @@ def postgres_container():
 @pytest.fixture(scope="session")
 def postgres_url(postgres_container):
     """
-    Get the REAL connection URL from the container (critical in CI/DinD).
-    This returns something like postgresql+psycopg2://app1:app1@localhost:49173/app1
+    Connection URL for the session-scoped Postgres
+    container (SQLAlchemy/psycopg2).
     """
-    url = postgres_container.get_connection_url()
-    # Optional: force psycopg2 driver if your env prefers it
-    # url = url.replace("psycopg:", "psycopg2:")
-    print(f"Using Postgres test URL: {url}")  # ← Helpful debug in CI logs
+    return postgres_container.get_connection_url()
+
+
+# --- Testcontainers fixtures (RabbitMQ) ---
+
+
+@pytest.fixture(scope="session")
+def rabbitmq_container():
+    """Start a RabbitMQ container for the test session (requires Docker)."""
+    try:
+        from testcontainers.rabbitmq import RabbitMqContainer
+    except ImportError:
+        pytest.skip("testcontainers not installed - skipping")
+
+    container = RabbitMqContainer(image="rabbitmq:3-management-alpine")
+    container.start()
+
+    yield container
+
+    container.stop()
+
+
+@pytest.fixture(scope="session")
+def rabbitmq_url(rabbitmq_container):
+    """AMQP URL for the session-scoped RabbitMQ container."""
+    host = rabbitmq_container.get_container_host_ip()
+    port = rabbitmq_container.get_exposed_port(rabbitmq_container.port)
+    vhost = (rabbitmq_container.vhost or "/").strip("/") or ""
+    url = (
+        f"amqp://{rabbitmq_container.username}:{rabbitmq_container.password}"
+        f"@{host}:{port}/{vhost}"
+    )
+    print(f"Using RabbitMQ test URL: {url}")
     return url
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def integration_engine(postgres_url):
     """SQLAlchemy engine bound to the Testcontainer Postgres."""
     from sqlalchemy import create_engine

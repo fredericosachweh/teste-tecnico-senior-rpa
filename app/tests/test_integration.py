@@ -5,6 +5,8 @@ Requires Docker. Run with: pytest app/tests/test_integration.py -v
 Skip if no Docker: pytest -m "not integration" ...
 """
 
+from unittest.mock import patch
+
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -69,25 +71,30 @@ def test_api_health_over_container_db(integration_engine):
             session.close()
 
     app.dependency_overrides[get_session] = override_get_session
-    try:
-        client = TestClient(app)
-        r = client.get("/health")
-        assert r.status_code == 200
-        assert r.json() == {"status": "healthy"}
+    # Use container engine so lifespan create_all hits the test DB
+    with patch("app.database.engine", integration_engine):
+        try:
+            client = TestClient(app)
+            r = client.get("/health")
+            assert r.status_code == 200
+            assert r.json() == {"status": "healthy"}
 
-        r = client.get("/")
-        assert r.status_code == 200
-        assert "RPA Crawler API" in r.json()["message"]
+            r = client.get("/")
+            assert r.status_code == 200
+            assert "RPA Crawler API" in r.json()["message"]
 
-        r = client.get("/jobs")
-        assert r.status_code == 200
-        assert isinstance(r.json(), list)
-    finally:
-        app.dependency_overrides.pop(get_session, None)
+            r = client.get("/jobs")
+            assert r.status_code == 200
+            assert isinstance(r.json(), list)
+        finally:
+            app.dependency_overrides.pop(get_session, None)
 
 
-def test_api_create_job_over_container_db(integration_engine):
-    """Test POST /crawl/hockey creates a job in the container DB."""
+def test_api_create_job_over_container_db(integration_engine, rabbitmq_url):
+    """
+    Test POST /crawl/hockey creates a job and
+    publishes to RabbitMQ (Testcontainers).
+    """
     from fastapi.testclient import TestClient
     from sqlalchemy.orm import sessionmaker
 
@@ -111,19 +118,25 @@ def test_api_create_job_over_container_db(integration_engine):
             session.close()
 
     app.dependency_overrides[get_session] = override_get_session
-    try:
-        client = TestClient(app)
-        r = client.post("/crawl/hockey")
-        assert r.status_code == 200
-        data = r.json()
-        assert "job_id" in data
-        assert data["status"] == "pending"
-        assert data["job_type"] == "hockey"
+    # Use container engine so lifespan create_all
+    # hits the test DB; use container RabbitMQ
+    with (
+        patch("app.database.engine", integration_engine),
+        patch("app.queue.RABBITMQ_URL", rabbitmq_url),
+    ):
+        try:
+            client = TestClient(app)
+            r = client.post("/crawl/hockey")
+            assert r.status_code == 200
+            data = r.json()
+            assert "job_id" in data
+            assert data["status"] == "pending"
+            assert data["job_type"] == "hockey"
 
-        r = client.get("/jobs")
-        assert r.status_code == 200
-        jobs = r.json()
-        assert len(jobs) >= 1
-        assert jobs[0]["job_id"] == data["job_id"]
-    finally:
-        app.dependency_overrides.pop(get_session, None)
+            r = client.get("/jobs")
+            assert r.status_code == 200
+            jobs = r.json()
+            assert len(jobs) >= 1
+            assert jobs[0]["job_id"] == data["job_id"]
+        finally:
+            app.dependency_overrides.pop(get_session, None)
