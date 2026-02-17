@@ -1,28 +1,31 @@
 import pytest
 from pydantic import ValidationError
 
-from app.models.films import FilmBase, OscarWinnerFilm
+from app.models.films import (
+    FilmBaseSchema,
+    OscarWinnerFilmSchema,
+)
 
 
-class TestFilmBase:
+class TestFilmBaseSchema:
     def test_valid_title(self):
-        model = FilmBase(title="The Godfather")
+        model = FilmBaseSchema(title="The Godfather")
         assert model.title == "The Godfather"
 
     def test_empty_title_raises(self):
         with pytest.raises(ValidationError) as exc_info:
-            FilmBase(title="")
+            FilmBaseSchema(title="")
         err = exc_info.value
         assert "title" in str(err).lower() or len(err.errors()) > 0
 
     def test_missing_title_raises(self):
         with pytest.raises(ValidationError):
-            FilmBase()
+            FilmBaseSchema()
 
 
-class TestOscarWinnerFilm:
+class TestOscarWinnerFilmSchema:
     def test_valid_film(self):
-        film = OscarWinnerFilm(
+        film = OscarWinnerFilmSchema(
             film_id=1,
             title="The Godfather",
             year=1972,
@@ -38,7 +41,7 @@ class TestOscarWinnerFilm:
         assert film.best_picture is True
 
     def test_best_picture_default_false(self):
-        film = OscarWinnerFilm(
+        film = OscarWinnerFilmSchema(
             film_id=1,
             title="Some Film",
             year=2000,
@@ -49,7 +52,7 @@ class TestOscarWinnerFilm:
 
     def test_year_before_1927_raises(self):
         with pytest.raises(ValidationError):
-            OscarWinnerFilm(
+            OscarWinnerFilmSchema(
                 film_id=1,
                 title="Old Film",
                 year=1926,
@@ -58,7 +61,7 @@ class TestOscarWinnerFilm:
             )
 
     def test_year_1927_valid(self):
-        film = OscarWinnerFilm(
+        film = OscarWinnerFilmSchema(
             film_id=1,
             title="Wings",
             year=1927,
@@ -69,7 +72,7 @@ class TestOscarWinnerFilm:
 
     def test_negative_nominations_raises(self):
         with pytest.raises(ValidationError):
-            OscarWinnerFilm(
+            OscarWinnerFilmSchema(
                 film_id=1,
                 title="Film",
                 year=2000,
@@ -79,7 +82,7 @@ class TestOscarWinnerFilm:
 
     def test_negative_awards_raises(self):
         with pytest.raises(ValidationError):
-            OscarWinnerFilm(
+            OscarWinnerFilmSchema(
                 film_id=1,
                 title="Film",
                 year=2000,
@@ -88,7 +91,7 @@ class TestOscarWinnerFilm:
             )
 
     def test_zero_nominations_and_awards_valid(self):
-        film = OscarWinnerFilm(
+        film = OscarWinnerFilmSchema(
             film_id=1,
             title="Film",
             year=2000,

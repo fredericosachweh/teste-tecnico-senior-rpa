@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.database import Base
 from sqlalchemy import Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -7,8 +9,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 class HockeyTeam(Base):
     __tablename__ = "hockey_team"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    historic: Mapped[list["HockeyTeamHistoric"]] = relationship(
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    historic: Mapped[list[HockeyTeamHistoric]] = relationship(
         "HockeyTeamHistoric", back_populates="team", lazy="joined"
     )
 
@@ -26,6 +28,6 @@ class HockeyTeamHistoric(Base):
     goals_for: Mapped[float] = mapped_column(Float, nullable=False)
     goals_against: Mapped[float] = mapped_column(Float, nullable=False)
     goal_difference: Mapped[float] = mapped_column(Float, nullable=False)
-    job_id: Mapped[str] = mapped_column(String, nullable=True)
+    job_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    team: Mapped["HockeyTeam"] = relationship("HockeyTeam", back_populates="historic")
+    team: Mapped[HockeyTeam] = relationship("HockeyTeam", back_populates="historic")

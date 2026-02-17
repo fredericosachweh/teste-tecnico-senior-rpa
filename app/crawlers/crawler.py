@@ -21,7 +21,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from app.config import SCRAPER_URLS
 from app.database import Session
-from app.models.films import Film
 from app.models.hockey_teams import HockeyTeam, HockeyTeamHistoric
 
 
@@ -355,16 +354,27 @@ class OscarScraper(Scraper):
         return all_data
 
     def save_to_database(self, data: List[Dict[str, any]], job_id: str = None) -> None:
-        """Save Oscar data to database"""
+        """Save Oscar data to database: create Film by title, then OscarWinnerFilm with film_id."""
+        from app.models.films import Film, OscarWinnerFilm
+
         with Session() as session:
             for row in data:
-                film = Film(
-                    title=row["title"],
+                film = (
+                    session.query(Film)
+                    .filter(Film.title == row["title"])
+                    .one_or_none()
+                )
+                if not film:
+                    film = Film(title=row["title"])
+                    session.add(film)
+                    session.flush()
+                oscar = OscarWinnerFilm(
+                    film_id=film.id,
                     year=row["year"],
                     nominations=row["nominations"],
                     awards=row["awards"],
                     best_picture=row.get("best_picture", False),
                     job_id=job_id,
                 )
-                session.add(film)
+                session.add(oscar)
             session.commit()

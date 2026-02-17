@@ -4,10 +4,10 @@ from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session as DBSession
+from sqlalchemy.orm import Session as DBSession, joinedload
 
 from app.database import Base, engine, get_session
-from app.models.films import Film
+from app.models.films import Film, OscarWinnerFilm
 from app.models.hockey_teams import HockeyTeamHistoric
 from app.models.jobs import Job, JobStatus, JobType
 from app.queue import publish_job
@@ -253,7 +253,12 @@ def get_job_results(job_id: str, db: DBSession = Depends(get_session)):
             ],
         }
     else:  # OSCAR
-        results = db.query(Film).filter(Film.job_id == job_id).all()
+        results = (
+            db.query(OscarWinnerFilm)
+            .options(joinedload(OscarWinnerFilm.film))
+            .filter(OscarWinnerFilm.job_id == job_id)
+            .all()
+        )
         return {
             "job_id": job_id,
             "status": job.status.value,
@@ -262,7 +267,7 @@ def get_job_results(job_id: str, db: DBSession = Depends(get_session)):
             "results": [
                 FilmResponse(
                     id=r.id,
-                    title=r.title,
+                    title=r.film.title,
                     year=r.year,
                     nominations=r.nominations,
                     awards=r.awards,
@@ -302,14 +307,19 @@ def get_all_hockey_results(limit: int = 100, db: DBSession = Depends(get_session
 @app.get("/results/oscar")
 def get_all_oscar_results(limit: int = 100, db: DBSession = Depends(get_session)):
     """Todos os dados coletados de Oscar"""
-    results = db.query(Film).limit(limit).all()
+    results = (
+        db.query(OscarWinnerFilm)
+        .options(joinedload(OscarWinnerFilm.film))
+        .limit(limit)
+        .all()
+    )
     return {
         "total": len(results),
         "limit": limit,
         "results": [
             FilmResponse(
                 id=r.id,
-                title=r.title,
+                title=r.film.title,
                 year=r.year,
                 nominations=r.nominations,
                 awards=r.awards,

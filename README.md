@@ -188,6 +188,23 @@ direnv allow
 
 Commite o `flake.lock` no seu repositório.
 
+### Pre-commit (opcional)
+
+Para rodar **black**, **ruff** e **pytest** automaticamente antes de cada commit:
+
+```bash
+pip install pre-commit   # ou: pip install -e ".[dev]"
+pre-commit install
+```
+
+No primeiro commit após instalar, os hooks serão executados. Para rodar manualmente em todos os arquivos:
+
+```bash
+pre-commit run --all-files
+```
+
+Hooks configurados em `.pre-commit-config.yaml`: trailing whitespace, end-of-file, check-yaml, check-json, black, ruff (--fix), pytest.
+
 ---
 
 ## Regras

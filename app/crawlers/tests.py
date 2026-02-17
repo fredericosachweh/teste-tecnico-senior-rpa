@@ -1,3 +1,4 @@
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models.hockey_teams import HockeyTeam, HockeyTeamHistoric
 
-from .crawler import HockeyHistoricScraper
+from .crawler import HockeyHistoricScraper, OscarScraper
 
 HOCKEY_HEADER = [
     "Team Name",
@@ -174,3 +175,151 @@ def test_save_to_database(scraper):
         assert len(historics) == 2
         assert historics[0].year == 2024 and historics[0].wins == 50
         assert historics[1].year == 2024 and historics[1].wins == 48
+
+
+# --- OscarScraper tests ---
+
+
+@pytest.fixture
+def oscar_scraper():
+    return OscarScraper(headless=True)
+
+
+def test_oscar_fetch_year_data(oscar_scraper):
+    """_fetch_year_data returns list of film dicts from mocked AJAX JSON."""
+    mock_json = [
+        {
+            "title": "Argo",
+            "year": 2012,
+            "nominations": 7,
+            "awards": 3,
+            "best_picture": True,
+        },
+        {
+            "title": "Lincoln",
+            "year": 2012,
+            "nominations": 12,
+            "awards": 2,
+            "best_picture": False,
+        },
+    ]
+    with patch("urllib.request.urlopen") as mock_open:
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = __import__("json").dumps(mock_json).encode()
+        mock_resp.__enter__ = lambda self: self
+        mock_resp.__exit__ = lambda *a: None
+        mock_open.return_value = mock_resp
+        result = oscar_scraper._fetch_year_data(2012)
+    assert len(result) == 2
+    assert result[0]["title"] == "Argo"
+    assert result[0]["year"] == 2012
+    assert result[0]["nominations"] == 7
+    assert result[0]["awards"] == 3
+    assert result[0]["best_picture"] is True
+    assert result[1]["title"] == "Lincoln"
+    assert result[1]["best_picture"] is False
+
+
+def test_oscar_fetch_year_data_skips_empty_title(oscar_scraper):
+    """_fetch_year_data skips films with empty title."""
+    mock_json = [
+        {"title": "  ", "year": 2012, "nominations": 0, "awards": 0},
+        {"title": "Argo", "year": 2012, "nominations": 7, "awards": 3},
+    ]
+    with patch("urllib.request.urlopen") as mock_open:
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = __import__("json").dumps(mock_json).encode()
+        mock_resp.__enter__ = lambda self: self
+        mock_resp.__exit__ = lambda *a: None
+        mock_open.return_value = mock_resp
+        result = oscar_scraper._fetch_year_data(2012)
+    assert len(result) == 1
+    assert result[0]["title"] == "Argo"
+
+
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Pydantic not compatible with Python 3.14; Film/OscarWinnerFilm import films",
+)
+def test_oscar_save_to_database(oscar_scraper):
+    """save_to_database creates Film and OscarWinnerFilm rows (film_id link)."""
+    from app.models.films import Film, OscarWinnerFilm
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    data = [
+        {
+            "title": "Argo",
+            "year": 2012,
+            "nominations": 7,
+            "awards": 3,
+            "best_picture": True,
+        },
+        {
+            "title": "Lincoln",
+            "year": 2012,
+            "nominations": 12,
+            "awards": 2,
+            "best_picture": False,
+        },
+    ]
+
+    with patch("app.crawlers.crawler.Session", session_factory):
+        oscar_scraper.save_to_database(data, job_id="job-1")
+
+    with session_factory() as session:
+        films = session.query(Film).order_by(Film.title).all()
+        assert len(films) == 2
+        assert films[0].title == "Argo"
+        assert films[1].title == "Lincoln"
+
+        oscars = (
+            session.query(OscarWinnerFilm)
+            .order_by(OscarWinnerFilm.film_id)
+            .all()
+        )
+        assert len(oscars) == 2
+        assert oscars[0].film_id == films[0].id
+        assert oscars[0].year == 2012
+        assert oscars[0].nominations == 7
+        assert oscars[0].awards == 3
+        assert oscars[0].best_picture is True
+        assert oscars[0].job_id == "job-1"
+        assert oscars[1].film_id == films[1].id
+        assert oscars[1].nominations == 12
+        assert oscars[1].best_picture is False
+
+
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Pydantic not compatible with Python 3.14; Film/OscarWinnerFilm import films",
+)
+def test_oscar_save_to_database_reuses_film_by_title(oscar_scraper):
+    """Same title creates one Film and two OscarWinnerFilm rows."""
+    from app.models.films import Film, OscarWinnerFilm
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    data = [
+        {"title": "Argo", "year": 2012, "nominations": 7, "awards": 3, "best_picture": True},
+        {"title": "Argo", "year": 2013, "nominations": 1, "awards": 0, "best_picture": False},
+    ]
+
+    with patch("app.crawlers.crawler.Session", session_factory):
+        oscar_scraper.save_to_database(data, job_id="job-1")
+
+    with session_factory() as session:
+        films = session.query(Film).all()
+        assert len(films) == 1
+        assert films[0].title == "Argo"
+
+        oscars = session.query(OscarWinnerFilm).order_by(OscarWinnerFilm.year).all()
+        assert len(oscars) == 2
+        assert oscars[0].film_id == films[0].id
+        assert oscars[0].year == 2012
+        assert oscars[1].film_id == films[0].id
+        assert oscars[1].year == 2013

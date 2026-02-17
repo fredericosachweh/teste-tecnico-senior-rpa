@@ -3,8 +3,11 @@ name = "teste-tecnico-senior-rpa"
 version = "0.1.0"
 requires-python = ">=3.12"
 
+[project.optional-dependencies]
+dev = ["pre-commit>=4.0.0"]
+
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["app/tests", "app/crawlers"]
 pythonpath = ["."]
 
 [tool.ruff]

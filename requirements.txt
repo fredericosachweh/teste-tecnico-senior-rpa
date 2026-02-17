@@ -16,3 +16,6 @@ black>=24.0.0
 pytest>=8.0.0
 pytest-cov>=4.0.0
 
+# Pre-commit (optional: run black, ruff, pytest on git commit)
+pre-commit>=4.0.0
+
