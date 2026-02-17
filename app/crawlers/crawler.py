@@ -73,18 +73,18 @@ class Scraper:
         self.driver = webdriver.Chrome(service=service, options=options)
 
         # Better webdriver hiding (executed on every new document)
+        # fmt: off
         self.driver.execute_cdp_cmd(
             "Page.addScriptToEvaluateOnNewDocument",
-            {
-                "source": """
+            {"source": """
                 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
                 Object.defineProperty(navigator, 'languages',
                     { get: () => ['en-US', 'en'] });
                 Object.defineProperty(navigator, 'plugins',
                     { get: () => [1, 2, 3, 4, 5] });
-            """
-            },
+            """},
         )
+        # fmt: on
 
     def close(self) -> None:
         if self.driver is not None:
