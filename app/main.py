@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.orm import joinedload
 
@@ -29,6 +29,8 @@ class JobCreate(BaseModel):
 
 
 class JobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     job_id: str
     job_type: str
     status: str
@@ -38,11 +40,10 @@ class JobResponse(BaseModel):
     error_message: Optional[str] = None
     results_count: int = 0
 
-    class Config:
-        from_attributes = True
-
 
 class HockeyTeamResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     year: int
@@ -54,20 +55,16 @@ class HockeyTeamResponse(BaseModel):
     goals_against: float
     goal_difference: float
 
-    class Config:
-        from_attributes = True
-
 
 class FilmResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: str
     year: int
     nominations: int
     awards: int
     best_picture: bool
-
-    class Config:
-        from_attributes = True
 
 
 # Root endpoints
