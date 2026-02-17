@@ -5,6 +5,7 @@ Este sistema coleta dados de dois sites diferentes usando web scraping com Selen
 ## 📋 Pré-requisitos
 
 - **Docker** e **Docker Compose** (v2: `docker compose` ou v1: `docker-compose`)
+- (Opcional) **Python 3.12** (qualquer versão, ex.: 3.12.0 ou 3.12.3) para desenvolvimento local e testes; use versão menor que 3.13 por causa do Pydantic.
 - (Opcional) `make`, `curl`, `jq` para testes via terminal
 - **Mac com Apple Silicon:** o `docker-compose.yml` já usa `platform: linux/arm64` para postgres, rabbitmq, api e worker
 

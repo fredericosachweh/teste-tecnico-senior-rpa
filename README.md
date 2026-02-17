@@ -63,6 +63,19 @@ Construir uma aplicação que:
 
 ## Requisitos Técnicos
 
+### Python
+
+Recomenda-se **qualquer versão do Python 3.12** (ex.: 3.12.0, 3.12.3). Use uma versão **menor que 3.13** por causa de incompatibilidades do Pydantic com 3.13+. O projeto usa `requires-python = ">=3.12"`.
+
+```bash
+# Exemplo com pyenv
+pyenv install 3.12.3
+pyenv local 3.12.3
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 ### Stack Obrigatória
 
 | Tecnologia | Uso |
@@ -142,6 +155,8 @@ O pipeline deve executar:
 ---
 
 ## Ambiente de Desenvolvimento
+
+Use **Python 3.12** (qualquer versão da série 3.12). Veja a seção [Python](#python) acima.
 
 ### Nix + direnv (Recomendado - Linux)
 

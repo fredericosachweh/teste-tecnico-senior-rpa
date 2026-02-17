@@ -243,6 +243,7 @@
 
 | Componente | Tecnologia | Versão |
 |------------|------------|--------|
+| Runtime | Python | **3.12** |
 | API | FastAPI | 0.115+ |
 | ORM | SQLAlchemy | 2.0+ |
 | Validação | Pydantic | 2.0+ |

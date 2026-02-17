@@ -1,5 +1,7 @@
 # Guia de Uso - Sistema de RPA Crawler
 
+Para desenvolvimento local e testes, recomenda-se **qualquer versão do Python 3.12** (menor que 3.13, por causa do Pydantic). Ver [README.md](README.md#python).
+
 ## 🚀 Início Rápido
 
 ### 1. Iniciar o sistema completo

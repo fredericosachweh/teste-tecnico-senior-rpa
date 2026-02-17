@@ -1,5 +1,7 @@
 # 🚀 Início Rápido
 
+Para desenvolvimento local (venv, testes), use **qualquer versão do Python 3.12** (menor que 3.13, por causa do Pydantic). Ver [README.md](README.md#python).
+
 ## Opção 1: Usando Make (Recomendado)
 
 ```bash
