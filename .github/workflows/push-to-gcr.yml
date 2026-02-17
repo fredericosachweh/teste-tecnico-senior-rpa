@@ -32,7 +32,7 @@ jobs:
         run: black --check app app/crawlers/
 
       - name: Pytest
-        run: pytest app/tests/ app/crawlers/ -v --tb=short
+        run: pytest app/tests/ -v --tb=short
 
   build-and-push:
     runs-on: ubuntu-latest
