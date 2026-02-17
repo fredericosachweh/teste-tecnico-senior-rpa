@@ -38,7 +38,7 @@
 
           shellHook = ''
             export UV_LINK_MODE=copy
-            
+
             export CHROMEDRIVER_PATH=${pkgs.chromedriver}/bin/chromedriver
           '';
 

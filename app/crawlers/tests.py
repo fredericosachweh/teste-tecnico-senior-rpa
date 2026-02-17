@@ -1,4 +1,3 @@
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -237,10 +236,6 @@ def test_oscar_fetch_year_data_skips_empty_title(oscar_scraper):
     assert result[0]["title"] == "Argo"
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 14),
-    reason="Pydantic not compatible with Python 3.14 (Film/OscarWinnerFilm).",
-)
 def test_oscar_save_to_database(oscar_scraper):
     """save_to_database creates Film and OscarWinnerFilm rows (film_id link)."""
     from app.models.films import Film, OscarWinnerFilm
@@ -288,10 +283,6 @@ def test_oscar_save_to_database(oscar_scraper):
         assert oscars[1].best_picture is False
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 14),
-    reason="Pydantic not compatible with Python 3.14 (Film/OscarWinnerFilm).",
-)
 def test_oscar_save_to_database_reuses_film_by_title(oscar_scraper):
     """Same title creates one Film and two OscarWinnerFilm rows."""
     from app.models.films import Film, OscarWinnerFilm

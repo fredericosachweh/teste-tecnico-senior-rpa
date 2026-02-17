@@ -1,5 +1,5 @@
-# Run: pre-commit install
-# Then: black, ruff, pytest (and below) run automatically on git commit.
+# Install: pre-commit install
+# Run manually: pre-commit run --all-files
 # See https://pre-commit.com/
 
 default_language_version:
@@ -35,12 +35,12 @@ repos:
         args: ["--fix"]
         files: ^app/
 
-  # Pytest (run tests before commit)
+  # Pytest (uses repo .venv)
   - repo: local
     hooks:
       - id: pytest
         name: pytest
-        entry: pytest
+        entry: .venv/bin/python -m pytest
         language: system
         pass_filenames: false
         always_run: true

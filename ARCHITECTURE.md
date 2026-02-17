@@ -48,6 +48,8 @@
 - Queue Name: `crawl_jobs`
 - Durable: `True`
 - QoS: `prefetch_count=1` (um job por worker)
+- Socket timeout e `connection_attempts` para falha rápida se RabbitMQ estiver indisponível
+- `publish_jobs()` para publicar vários jobs em uma única conexão (ex.: `/crawl/all`)
 
 ### 3. Workers (Processadores)
 **Arquivo:** `app/worker.py`
@@ -71,7 +73,7 @@
 - Pode ser escalado: `docker-compose up --scale worker=4`
 
 ### 4. PostgreSQL (Banco de Dados)
-**Arquivo:** `app/database.py`
+**Arquivos:** `app/database.py`, `app/models/*.py` (jobs, hockey_teams, films)
 
 **Tabelas:**
 
@@ -91,13 +93,13 @@
 #### `hockey_team`
 ```sql
 - id (PK)
-- name
+- name (UNIQUE)
 ```
 
 #### `hockey_team_historic`
 ```sql
 - id (PK)
-- team_id (FK)
+- team_id (FK → hockey_team.id)
 - year
 - wins, losses, losses_ot
 - wins_percentage
@@ -109,7 +111,14 @@
 #### `films`
 ```sql
 - id (PK)
-- title
+- title (UNIQUE)
+```
+(Oscar metadata fica em `oscar_winner_films`.)
+
+#### `oscar_winner_films`
+```sql
+- id (PK)
+- film_id (FK → films.id, ON DELETE CASCADE)
 - year
 - nominations
 - awards
@@ -138,17 +147,13 @@
 **Site:** https://www.scrapethissite.com/pages/ajax-javascript/
 
 **Estratégia:**
-- Dados carregados via AJAX/JavaScript
-- Selenium com Chrome headless
-- Aguarda carregamento dinâmico (WebDriverWait)
-- Extrai elementos com classes CSS
+- Dados via AJAX (requisições HTTP por ano)
+- Selenium para obter lista de anos na página; `urllib` para chamadas à API AJAX por ano
+- Cria/Reutiliza `Film` por título; grava `OscarWinnerFilm` com `film_id`
 
 **Dados coletados:**
-- Título do filme
-- Ano
-- Número de indicações
-- Número de prêmios
-- Se ganhou melhor filme
+- Título do filme (tabela `films`, único por título)
+- Ano, indicações, prêmios, melhor filme (tabela `oscar_winner_films`)
 
 ## Fluxo de Dados
 
@@ -177,7 +182,7 @@
            ↓
 5. Scraper salva dados no PostgreSQL com job_id
            ↓
-6. Worker atualiza Job (status=completed, results_count) 
+6. Worker atualiza Job (status=completed, results_count)
            ↓
 7. Worker faz ACK da mensagem no RabbitMQ
 ```
@@ -247,6 +252,18 @@
 | Browser | Chrome | Stable |
 | Container | Docker | Latest |
 | Orquestração | Docker Compose | Latest |
+
+## Scripts e ferramentas
+
+| Script | Uso |
+|--------|-----|
+| `python -m app.init_db` | Garante que o banco existe e cria/atualiza tabelas |
+
+## Desenvolvimento e qualidade
+
+- **Testes:** `pytest` em `app/tests` e `app/crawlers` (modelos, API, crawlers).
+- **Lint/format:** Ruff e Black (config em `pyproject.toml`).
+- **Pre-commit:** `.pre-commit-config.yaml` — hooks para trailing whitespace, end-of-file, YAML/JSON, Black, Ruff e Pytest. Instalação: `pre-commit install`.
 
 ## Melhorias Futuras
 

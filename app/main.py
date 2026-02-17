@@ -11,7 +11,7 @@ from app.database import Base, engine, get_session
 from app.models.films import OscarWinnerFilm
 from app.models.hockey_teams import HockeyTeamHistoric
 from app.models.jobs import Job, JobStatus, JobType
-from app.queue import publish_job
+from app.queue import publish_job, publish_jobs
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -145,30 +145,40 @@ def crawl_oscar(db: DBSession = Depends(get_session)):
 
 @app.post("/crawl/all")
 def crawl_all(db: DBSession = Depends(get_session)):
-    """Agenda ambas as coletas (retorna job_ids)"""
-    jobs = []
-
-    # Hockey job
+    """Agenda ambas as coletas (retorna job_ids)."""
     hockey_job_id = str(uuid.uuid4())
-    hockey_job = Job(
-        job_id=hockey_job_id, job_type=JobType.HOCKEY, status=JobStatus.PENDING
-    )
-    db.add(hockey_job)
-    publish_job({"job_id": hockey_job_id, "job_type": "hockey"})
-    jobs.append({"job_id": hockey_job_id, "job_type": "hockey", "status": "pending"})
-
-    # Oscar job
     oscar_job_id = str(uuid.uuid4())
-    oscar_job = Job(
-        job_id=oscar_job_id, job_type=JobType.OSCAR, status=JobStatus.PENDING
+
+    hockey_job = Job(
+        job_id=hockey_job_id,
+        job_type=JobType.HOCKEY,
+        status=JobStatus.PENDING,
     )
+    oscar_job = Job(
+        job_id=oscar_job_id,
+        job_type=JobType.OSCAR,
+        status=JobStatus.PENDING,
+    )
+
+    db.add(hockey_job)
     db.add(oscar_job)
-    publish_job({"job_id": oscar_job_id, "job_type": "oscar"})
-    jobs.append({"job_id": oscar_job_id, "job_type": "oscar", "status": "pending"})
-
     db.commit()
+    db.refresh(hockey_job)
+    db.refresh(oscar_job)
 
-    return {"jobs": jobs}
+    publish_jobs(
+        [
+            {"job_id": hockey_job_id, "job_type": "hockey"},
+            {"job_id": oscar_job_id, "job_type": "oscar"},
+        ]
+    )
+
+    return {
+        "jobs": [
+            {"job_id": hockey_job_id, "job_type": "hockey", "status": "pending"},
+            {"job_id": oscar_job_id, "job_type": "oscar", "status": "pending"},
+        ]
+    }
 
 
 # Job management endpoints

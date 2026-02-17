@@ -20,7 +20,7 @@
 - `GET /jobs/{job_id}` - Status de job
 - `GET /jobs/{job_id}/results` - Resultados
 - `GET /results/hockey` - Todos dados Hockey
-- `GET /results/oscar` - Todos dados Oscar  
+- `GET /results/oscar` - Todos dados Oscar
 - `GET /health` - Health check
 
 ### ✅ Sistema de Filas
@@ -77,7 +77,7 @@ curl -X POST http://localhost:8000/crawl/hockey
 
 ```
 1. Cliente → POST /crawl/hockey
-2. API → Cria Job (pending) no PostgreSQL  
+2. API → Cria Job (pending) no PostgreSQL
 3. API → Publica mensagem no RabbitMQ
 4. API → Retorna job_id imediatamente
 5. Worker → Consome mensagem

@@ -12,7 +12,7 @@ class Film(Base):
     __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
 
     oscar_records: Mapped[list[OscarWinnerFilm]] = relationship(
         "OscarWinnerFilm",
