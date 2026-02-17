@@ -75,13 +75,15 @@ class Scraper:
         # Better webdriver hiding (executed on every new document)
         self.driver.execute_cdp_cmd(
             "Page.addScriptToEvaluateOnNewDocument",
-            {"source": """
+            {
+                "source": """
                 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
                 Object.defineProperty(navigator, 'languages',
                     { get: () => ['en-US', 'en'] });
                 Object.defineProperty(navigator, 'plugins',
                     { get: () => [1, 2, 3, 4, 5] });
-            """},
+            """
+            },
         )
 
     def close(self) -> None:
@@ -354,15 +356,13 @@ class OscarScraper(Scraper):
         return all_data
 
     def save_to_database(self, data: List[Dict[str, any]], job_id: str = None) -> None:
-        """Save Oscar data to database: create Film by title, then OscarWinnerFilm with film_id."""
+        """Save Oscar data: create Film by title, then OscarWinnerFilm with film_id."""
         from app.models.films import Film, OscarWinnerFilm
 
         with Session() as session:
             for row in data:
                 film = (
-                    session.query(Film)
-                    .filter(Film.title == row["title"])
-                    .one_or_none()
+                    session.query(Film).filter(Film.title == row["title"]).one_or_none()
                 )
                 if not film:
                     film = Film(title=row["title"])

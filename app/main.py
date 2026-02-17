@@ -4,10 +4,11 @@ from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session as DBSession, joinedload
+from sqlalchemy.orm import Session as DBSession
+from sqlalchemy.orm import joinedload
 
 from app.database import Base, engine, get_session
-from app.models.films import Film, OscarWinnerFilm
+from app.models.films import OscarWinnerFilm
 from app.models.hockey_teams import HockeyTeamHistoric
 from app.models.jobs import Job, JobStatus, JobType
 from app.queue import publish_job

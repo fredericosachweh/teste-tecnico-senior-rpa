@@ -239,7 +239,7 @@ def test_oscar_fetch_year_data_skips_empty_title(oscar_scraper):
 
 @pytest.mark.skipif(
     sys.version_info >= (3, 14),
-    reason="Pydantic not compatible with Python 3.14; Film/OscarWinnerFilm import films",
+    reason="Pydantic not compatible with Python 3.14 (Film/OscarWinnerFilm).",
 )
 def test_oscar_save_to_database(oscar_scraper):
     """save_to_database creates Film and OscarWinnerFilm rows (film_id link)."""
@@ -275,11 +275,7 @@ def test_oscar_save_to_database(oscar_scraper):
         assert films[0].title == "Argo"
         assert films[1].title == "Lincoln"
 
-        oscars = (
-            session.query(OscarWinnerFilm)
-            .order_by(OscarWinnerFilm.film_id)
-            .all()
-        )
+        oscars = session.query(OscarWinnerFilm).order_by(OscarWinnerFilm.film_id).all()
         assert len(oscars) == 2
         assert oscars[0].film_id == films[0].id
         assert oscars[0].year == 2012
@@ -294,7 +290,7 @@ def test_oscar_save_to_database(oscar_scraper):
 
 @pytest.mark.skipif(
     sys.version_info >= (3, 14),
-    reason="Pydantic not compatible with Python 3.14; Film/OscarWinnerFilm import films",
+    reason="Pydantic not compatible with Python 3.14 (Film/OscarWinnerFilm).",
 )
 def test_oscar_save_to_database_reuses_film_by_title(oscar_scraper):
     """Same title creates one Film and two OscarWinnerFilm rows."""
@@ -305,8 +301,20 @@ def test_oscar_save_to_database_reuses_film_by_title(oscar_scraper):
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     data = [
-        {"title": "Argo", "year": 2012, "nominations": 7, "awards": 3, "best_picture": True},
-        {"title": "Argo", "year": 2013, "nominations": 1, "awards": 0, "best_picture": False},
+        {
+            "title": "Argo",
+            "year": 2012,
+            "nominations": 7,
+            "awards": 3,
+            "best_picture": True,
+        },
+        {
+            "title": "Argo",
+            "year": 2013,
+            "nominations": 1,
+            "awards": 0,
+            "best_picture": False,
+        },
     ]
 
     with patch("app.crawlers.crawler.Session", session_factory):
